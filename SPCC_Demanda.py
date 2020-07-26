@@ -1,13 +1,9 @@
 import os
 import my_conexion
 import pmdarima as pm
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import pickle
-import matplotlib.patches as mpatches
-import matplotlib.pyplot as plt
-from math import sqrt
 from datetime import datetime,timedelta
 from sklearn import metrics
 from statsmodels.tsa.holtwinters import ExponentialSmoothing
@@ -15,25 +11,7 @@ from pandasql import sqldf
 pysqldf = lambda q: sqldf(q, globals())
 pd.options.display.max_columns = None
 
-def EntrenarDemandaALL(BD,cantidad_particion,frecuencia,fecha):
-    sql_pedidos = "SELECT cod_centro_operativo,cod_producto FROM pedidos group by cod_centro_operativo,cod_producto  limit 3"
-    conn = my_conexion.getConnection(BD)
-    Pedidos=pd.read_sql(sql_pedidos,conn)
-    Resultado=pd.DataFrame()
-    Resultado["cod_producto"] = range(0,len(Pedidos))
-    Resultado["cod_centro_operativo"] = range(0,len(Pedidos))
-    Resultado["cantidad_de_datos"] = range(0,len(Pedidos))
-    
-    df = pd.DataFrame(columns=('centro_operativo', 'producto','cantidad_datos', 'mae_auto', 'mae_holt', 'mae_promedio'))
-    
-    for i in range(len(Pedidos)):
-        cco=Pedidos['cod_centro_operativo'][i]
-        cp=Pedidos['cod_producto'][i]
-        VerficarDemandaALL(int(cco),int(cp),int(cantidad_particion),df,frecuencia,conn,fecha,BD)
-    return df
-
 def EntrenarDemanda(BD,cantidad_particion,frecuencia,cp,cco,fecha):
-    
     f="where cod_centro_operativo="+str(cco)+" and cod_producto="+str(cp)+" group by cod_centro_operativo,cod_producto"
     sql_pedidos = "SELECT cod_centro_operativo,cod_producto FROM pedidos "+f+""
     conn = my_conexion.getConnection(BD)
@@ -50,48 +28,6 @@ def EntrenarDemanda(BD,cantidad_particion,frecuencia,cp,cco,fecha):
         cp=Pedidos['cod_producto'][i]
         VerficarDemanda(int(cco),int(cp),int(cantidad_particion),df,frecuencia,conn,fecha,BD)
     return df
-
-def VerficarDemandaALL(cco,cp,cantidad_particion,df,frecuencia,conn,fecha,BD):
-        f="where cod_centro_operativo="+str(cco)+" and cod_producto="+str(cp)+" And fecha_pedido<='"+(fecha)+"' order by fecha_pedido ASC"
-        #f="where cod_centro_operativo="+str(cco)+" and cod_producto="+str(cp)+" order by fecha_pedido ASC"
-        sql_pedidos = "SELECT fecha_pedido,pedido_cantidad FROM pedidos "+f+""
-        Pedidos=pd.read_sql(sql_pedidos,conn)
-        columnsTitles=['fecha_pedido','pedido_cantidad']
-        Pedidos=Pedidos.reindex(columns=columnsTitles)
-        Pedidos['fecha_pedido'] = pd.to_datetime(Pedidos['fecha_pedido'])
-        #fechas = pd.date_range(Pedidos['fecha_pedido'].min(),Pedidos['fecha_pedido'].max())
-        fechas = pd.date_range(Pedidos['fecha_pedido'].min(),fecha)
-        fechas = fechas.strftime("%Y-%m-%d")
-        fechas = pd.DataFrame(fechas)
-        fechas = fechas.rename(columns = {0:'fecha_pedido'})
-        fechas['fecha_pedido'] = pd.to_datetime(fechas['fecha_pedido'])    
-        pedidos = pd.merge(fechas,Pedidos, on="fecha_pedido", how="outer")
-        pedidos = pedidos.fillna(0)
-        pedidos.reset_index(drop=True, inplace=True)
-        pedidos.index = pedidos['fecha_pedido']
-        columnsTitles=['pedido_cantidad']
-        pedidos=pedidos.reindex(columns=columnsTitles)    
-        pedidos=pedidos.resample(frecuencia).sum() 
-        
-        cantidad_d_e=int(cantidad_particion)/100
-        
-        dir_path = os.path.dirname(os.path.abspath("__file__")) 
-        nuevaruta = dir_path +'/ModelosEntrenados/' + BD + "/demanda/"
-        
-        if not os.path.exists(nuevaruta): 
-            os.makedirs(nuevaruta)
-        
-        auto = AutoArima(pedidos,cantidad_d_e,nuevaruta,cco,cp)
-        holt = HoltWinter(pedidos,cantidad_d_e,nuevaruta,cco,cp)
-        
-        #promedio=pedidos[round(cantidad_d_e*(len(pedidos))):]
-        
-        mae_promedio=Promedio(pedidos,cantidad_d_e,nuevaruta,cco,cp,fecha)
-                
-        df.loc[len(df)]=[cco,cp,len(Pedidos),auto,holt,mae_promedio]
-        df = df.astype({"centro_operativo": int, "producto": int, "cantidad_datos": int})
-        df.to_csv(nuevaruta+'metricas_Demanda.csv', index = False, header=True)
-        return "Entrenado..."
 
 def VerficarDemanda(cco,cp,cantidad_particion,df,frecuencia,conn,fecha,BD):
         f="where cod_centro_operativo="+str(cco)+" and cod_producto="+str(cp)+" And fecha_pedido<='"+(fecha)+"' order by fecha_pedido ASC"
@@ -153,7 +89,7 @@ def AutoArima(pedidos,cantidad_d_e,nuevaruta,cco,cp):
         pickle.dump(AutoArimaProduccion,open(filename,'wb'))
     
     except Exception as e: 
-        auto = "error"
+        auto = 9999999999
     return auto
 
 def HoltWinter(pedidos,cantidad_d_e,nuevaruta,cco,cp):
@@ -169,7 +105,7 @@ def HoltWinter(pedidos,cantidad_d_e,nuevaruta,cco,cp):
         filename = nuevaruta+'demanda_holt_%s_%s.pkl' % (cp,cco)
         pickle.dump(HoltWinterProduccion,open(filename,'wb')) 
     except Exception as e:
-        ho = "error"
+        ho = 9999999999
     return ho
 
 def Promedio(pedidos,cantidad_d_e,nuevaruta,cco,cp,fecha):
@@ -213,7 +149,7 @@ def PredecirDemanda(BD,Cod_Producto,Cod_Centro_Operativo,cantidad_a_predecir,fec
     
     op=np.argmin(metricas.iloc[:,3:6].values)
     
-    if(str(metricas.iloc[:,3:6].values[0][2])=="error valid 0"):
+    if(str(metricas.iloc[:,3:6].values[0][2])==9999999999):
         conn = my_conexion.getConnection(BD)
         f="where cod_centro_operativo="+str(Cod_Centro_Operativo)+" and cod_producto="+str(Cod_Producto)+""
         sql="select round(avg(pedido_cantidad)) as pedido_cantidad from pedidos "+f+""    
