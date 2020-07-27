@@ -20,12 +20,14 @@ fecha='2020-07-27'
 #6 productos del Centro Operativo 23: 30035, 31903, 35634, 39934, 46191, 46243
 #8 productos del Centro Operativo 24: 11058, 30023, 30024, 30025, 30026, 34453, 46243, 46244
 
-Producto = "11058"
+Producto = "28426"
 Centro_Operativo = "11"
 
 print("\n\n")
-entrenamiento=SPCC_Demanda.EntrenarDemanda(BD,95,'W',Producto,Centro_Operativo,fecha)
-print(entrenamiento)
+#entrenamiento=SPCC_Demanda.EntrenarDemanda(BD,95,'W',Producto,Centro_Operativo,fecha)
+#print(entrenamiento)
+forecast=SPCC_Demanda.PredecirDemanda(BD,Producto,Centro_Operativo,7,fecha)
+print(forecast)
 #if(entrenamiento.empty):
    #print("Error sin Datos")
 #else:

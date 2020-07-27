@@ -154,44 +154,9 @@ def PredecirDemanda(BD, Cod_Producto, Cod_Centro_Operativo, cantidad_a_predecir,
     dir_path = os.path.dirname(os.path.abspath("__file__"))
     nuevaruta = dir_path + '/ModelosEntrenados/' + BD + "/demanda/"
     try:
-        metricas = pd.read_csv(
-            nuevaruta + 'metricas_Demanda_' + str(Cod_Producto) + '_' + str(Cod_Centro_Operativo) + '.csv')
+        metricas = pd.read_csv(nuevaruta + 'metricas_Demanda_' + str(Cod_Producto) + '_' + str(Cod_Centro_Operativo) + '.csv')
     except Exception as e:
         return "Error: " + str(e)
-    metricas = metricas[(metricas['producto'] == Cod_Producto) & (metricas['centro_operativo'] == Cod_Centro_Operativo)]
-    columnsTitles = ['mae_auto', 'mae_holt', 'mae_promedio', ]
-    imput = pd.DataFrame(columns=columnsTitles)
-    imput.loc[len(imput)] = [metricas['mae_auto'], metricas['mae_holt'], metricas['mae_promedio']]
-
-    op = np.argmin(metricas.iloc[:, 3:6].values)
-
-    if (str(metricas.iloc[:, 3:6].values[0][2]) == 9999999999):
-        conn = my_conexion.getConnection(BD)
-        f = "where cod_centro_operativo=" + str(Cod_Centro_Operativo) + " and cod_producto=" + str(Cod_Producto) + ""
-        sql = "select round(avg(pedido_cantidad)) as pedido_cantidad from pedidos " + f + ""
-        promedio = pd.read_sql(sql, conn)
-        datos = pd.DataFrame()
-        datos["valor"] = range(0, cantidad_a_predecir)
-        datos["valor"] = round(promedio['pedido_cantidad'].values[0])
-
-        prediccion = datos["valor"].values
-    else:
-        if (op == 0):
-            prediccion = forecastAuto(Cod_Producto, Cod_Centro_Operativo, cantidad_a_predecir, BD)
-        if (op == 1):
-            prediccion = forecastHol(Cod_Producto, Cod_Centro_Operativo, cantidad_a_predecir, BD)
-        if (op == 2):
-            prediccion = forecastProm(Cod_Producto, Cod_Centro_Operativo, cantidad_a_predecir, BD, fecha)
-
-    return prediccion
-
-
-def PredecirDemandaAll(BD, Cod_Producto, Cod_Centro_Operativo, cantidad_a_predecir, fecha):
-    dir_path = os.path.dirname(os.path.abspath("__file__"))
-    nuevaruta = dir_path + '/ModelosEntrenados/' + BD + "/demanda/"
-    metricas = pd.read_csv(nuevaruta + 'metricas_Demanda.csv')
-    metricas = metricas[(metricas['producto'] == Cod_Producto) & (metricas['centro_operativo'] == Cod_Centro_Operativo)]
-    metricas = metricas.astype({"mae_auto": float, "mae_holt": float, "mae_promedio": float})
 
     op = np.argmin(metricas.iloc[:, 3:6].values)
 
@@ -203,6 +168,7 @@ def PredecirDemandaAll(BD, Cod_Producto, Cod_Centro_Operativo, cantidad_a_predec
         datos = pd.DataFrame()
         datos["valor"] = range(0, cantidad_a_predecir)
         datos["valor"] = round(promedio['pedido_cantidad'].values[0])
+
         prediccion = datos["valor"].values
     else:
         if (op == 0):
@@ -213,6 +179,7 @@ def PredecirDemandaAll(BD, Cod_Producto, Cod_Centro_Operativo, cantidad_a_predec
             prediccion = forecastProm(Cod_Producto, Cod_Centro_Operativo, cantidad_a_predecir, BD, fecha)
 
     return prediccion
+
 
 
 def forecastAuto(cp, ccp, c, BD):
